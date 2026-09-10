@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATEM SuperSource Animation Generator</title>
+<style>
+:root {
+  --bg:#16161a; --surface:#1f1f26; --panel:#27272f; --border:#35353f;
+  --accent:#5b7fff; --text:#e2e2ea; --muted:#6b6b80;
+  --success:#34d399; --danger:#f87171; --warn:#fbbf24;
+  --c1:#3b7fe8; --c2:#e05555; --c3:#d9921f; --c4:#3dba54;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* Header */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:9px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;}
+header h1{font-size:13px;font-weight:700;white-space:nowrap;}
+.badge{background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;}
+.hdr-right{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center;}
+select{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:4px 7px;font-size:12px;cursor:pointer;outline:none;}
+select:focus{border-color:var(--accent);}
+
+/* 3-col workspace */
+.workspace{display:grid;grid-template-columns:310px 1fr 260px;flex:1;min-height:0;overflow:hidden;}
+
+/* Left panel */
+.left{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.left-body{flex:1;overflow-y:auto;padding:10px;}
+
+/* Box cards */
+.box-card{background:var(--panel);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:8px;}
+.box-card.off{opacity:.4;}
+.box-hdr{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid var(--border);}
+.box-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.box-hdr span{font-weight:700;font-size:12px;flex:1;}
+.toggle{appearance:none;width:30px;height:17px;background:var(--border);border-radius:9px;cursor:pointer;position:relative;flex-shrink:0;}
+.toggle:checked{background:var(--accent);}
+.toggle::after{content:'';position:absolute;width:13px;height:13px;background:#fff;border-radius:50%;top:2px;left:2px;transition:left .15s;}
+.toggle:checked::after{left:15px;}
+
+.box-body{padding:8px 10px;display:flex;flex-direction:column;gap:5px;}
+.src-row{display:flex;align-items:center;gap:6px;margin-bottom:2px;}
+.src-row label{color:var(--muted);font-size:10px;min-width:38px;text-align:right;}
+.src-row select{flex:1;font-size:11px;padding:3px 5px;}
+
+.prop-header{display:grid;grid-template-columns:38px 1fr 1fr;gap:4px;margin-bottom:1px;}
+.ph-lbl{font-size:9px;color:var(--muted);text-align:center;}
+.prop-row{display:grid;grid-template-columns:38px 1fr 1fr;gap:4px;align-items:center;}
+.prop-lbl{color:var(--muted);font-size:10px;text-align:right;padding-right:2px;}
+
+/* The scrub number input — key fix: pointer-events + no spinner */
+.num{
+  background:var(--bg);border:1px solid var(--border);color:var(--text);
+  border-radius:3px;padding:3px 4px;font-size:11px;width:100%;text-align:center;
+  cursor:ew-resize;
+  -moz-appearance:textfield;
+}
+.num::-webkit-outer-spin-button,.num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.num:focus{border-color:var(--accent);outline:none;cursor:text;}
+.num.typing{cursor:text;}
+
+.section-sep{border-top:1px solid var(--border);margin:4px 0;padding-top:4px;}
+.section-sep-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:3px;}
+
+/* Centre — canvas */
+.centre{display:flex;flex-direction:column;background:#111;overflow:hidden;}
+.canvas-wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:10px;}
+#cv{width:100%;height:100%;object-fit:contain;display:block;border-radius:3px;background:#0a0a0a;cursor:default;}
+.preview-bar{background:var(--surface);border-top:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.fps-grp{display:flex;align-items:center;gap:3px;}
+.fpsbtn{background:var(--panel);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;}
+.fpsbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.fps-lbl{color:var(--muted);font-size:11px;}
+.stage-grp{display:flex;border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+.sbtn{background:var(--panel);border:none;color:var(--muted);padding:5px 12px;font-size:11px;cursor:pointer;}
+.sbtn.on{background:var(--accent);color:#fff;}
+.frame-ctr{color:var(--accent);font-size:11px;font-variant-numeric:tabular-nums;min-width:64px;}
+#playbtn{margin-left:auto;background:var(--success);border:none;color:#000;font-weight:800;font-size:13px;border-radius:5px;padding:8px 22px;cursor:pointer;min-width:110px;}
+#playbtn.playing{background:var(--danger);color:#fff;}
+
+/* Right panel */
+.right{background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:12px;gap:12px;}
+.sec-hdr{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding-bottom:5px;border-bottom:1px solid var(--border);margin-bottom:6px;}
+.preset-item{display:flex;align-items:flex-start;gap:6px;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:6px 8px;cursor:pointer;font-size:11px;color:var(--muted);margin-bottom:4px;line-height:1.4;}
+.preset-item:hover{border-color:var(--accent);color:var(--text);}
+.pi{font-size:13px;flex-shrink:0;padding-top:1px;}
+.ease-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;}
+.easebtn{background:var(--panel);border:1px solid var(--border);color:var(--muted);border-radius:3px;padding:5px 4px;font-size:10px;cursor:pointer;text-align:center;}
+.easebtn:hover{border-color:var(--accent);color:var(--text);}
+.easebtn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.exp-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+.exp-row label{color:var(--muted);font-size:11px;min-width:80px;}
+.exp-row input{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 7px;font-size:12px;flex:1;}
+.exp-row input:focus{border-color:var(--accent);outline:none;}
+.btnprimary{width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;border-radius:5px;padding:9px;cursor:pointer;margin-top:2px;}
+.btnprimary:hover{background:#4a6ef0;}
+.btnsec{width:100%;background:var(--panel);border:1px solid var(--border);color:var(--muted);font-size:11px;border-radius:4px;padding:6px;cursor:pointer;margin-top:4px;}
+.btnsec:hover{border-color:var(--accent);color:var(--text);}
+.xmlpre{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:8px;font-family:monospace;font-size:9px;color:var(--muted);white-space:pre-wrap;max-height:150px;overflow-y:auto;margin-top:5px;display:none;}
+.zoom-bar{background:var(--surface);border-top:1px solid var(--border);padding:6px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.zoom-bar button{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;min-width:30px;}
+.zoom-bar button:hover{border-color:var(--accent);color:var(--accent);}
+.zoom-bar .zlbl{color:var(--muted);font-size:11px;min-width:38px;text-align:center;}
+.zoom-bar .snap-btn{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;color:var(--muted);}
+.zoom-bar .snap-btn.on{background:rgba(91,127,255,.15);border-color:var(--accent);color:var(--accent);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:999;display:flex;align-items:center;justify-content:center;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:8px;width:540px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.modal-hdr{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-hdr h2{font-size:14px;font-weight:700;flex:1;}
+.modal-hdr span{color:var(--muted);font-size:11px;margin-right:12px;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.modal-body{overflow-y:auto;padding:10px 12px;flex:1;}
+.macro-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border);border-radius:5px;margin-bottom:6px;cursor:pointer;background:var(--panel);}
+.macro-item:hover{border-color:var(--accent);background:rgba(91,127,255,.08);}
+.macro-idx{font-size:10px;color:var(--muted);min-width:28px;text-align:right;font-variant-numeric:tabular-nums;}
+.macro-name{font-size:12px;font-weight:600;flex:1;}
+.macro-meta{font-size:10px;color:var(--muted);text-align:right;}
+.macro-boxes{display:flex;gap:3px;align-items:center;}
+.macro-box-dot{width:8px;height:8px;border-radius:2px;}
+.modal-empty{color:var(--muted);font-size:12px;text-align:center;padding:30px;}
+.info{background:rgba(91,127,255,.08);border:1px solid rgba(91,127,255,.25);border-radius:5px;padding:9px 10px;font-size:11px;color:#9ab0ff;line-height:1.6;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ATEM SuperSource Animation Generator</h1>
+  <span class="badge">FREE</span>
+  <button id="btn-help" title="Keyboard shortcuts" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:4px 9px;font-size:12px;cursor:pointer;">⌨ Help</button>
+  <div id="help-popup" style="display:none;position:fixed;top:50px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px 16px;z-index:500;font-size:11px;color:var(--text);min-width:240px;box-shadow:0 8px 30px rgba(0,0,0,.5);">
+    <div style="font-weight:700;margin-bottom:8px;font-size:12px;">Keyboard Shortcuts</div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;color:var(--muted);">
+      <span style="color:var(--text);font-family:monospace">Space</span><span>Play / Stop</span>
+      <span style="color:var(--text);font-family:monospace">F</span><span>Show From frame</span>
+      <span style="color:var(--text);font-family:monospace">T</span><span>Show To frame</span>
+      <span style="color:var(--text);font-family:monospace">R</span><span>Reverse animation</span>
+      <span style="color:var(--text);font-family:monospace">Ctrl+Z</span><span>Undo</span>
+      <span style="color:var(--text);font-family:monospace">Ctrl+Y</span><span>Redo</span>
+      <span style="color:var(--text);font-family:monospace">Esc</span><span>Deselect all</span>
+      <span style="color:var(--text);font-family:monospace">Shift+drag</span><span>Add to selection / uniform scale</span>
+      <span style="color:var(--text);font-family:monospace">Alt+drag</span><span>Bypass snap</span>
+      <span style="color:var(--text);font-family:monospace">Scroll</span><span>Zoom in / out</span>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <label style="background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;" title="Load an ATEM macro XML file to inspect its animation">
+      📂 Load XML
+      <input type="file" id="xml-file-input" accept=".xml" style="display:none">
+    </label>
+    <select id="sel-device"></select>
+    <select id="sel-sw"><option value="0">M/E 1</option><option value="1">M/E 2</option><option value="2">M/E 3</option><option value="3">M/E 4</option></select>
+    <select id="sel-ss"><option value="0">SuperSource 1</option><option value="1">SuperSource 2</option></select>
+  </div>
+</header>
+
+<div id="load-msg" style="display:none;background:#1a3a1a;border-bottom:1px solid #2d5a2d;padding:6px 16px;font-size:11px;color:#6dda8a;flex-shrink:0;"></div>
+<div class="workspace">
+
+  <!-- LEFT -->
+  <div class="left">
+    <div class="left-body" id="left-body"></div>
+  </div>
+
+  <!-- CENTRE -->
+  <div class="centre">
+    <div class="canvas-wrap" id="canvas-wrap" style="overflow:hidden;position:relative;flex:1;min-height:0;">
+      <canvas id="cv" width="3000" height="2160" style="position:absolute;"></canvas>
+    </div>
+    <div class="zoom-bar">
+      <button id="zoom-out">−</button>
+      <span class="zlbl" id="zoom-lbl">100%</span>
+      <button id="zoom-in">+</button>
+      <button id="zoom-fit" style="font-size:10px;padding:4px 7px;">Fit</button>
+      <div style="width:1px;background:var(--border);height:16px;margin:0 4px;"></div>
+      <button class="snap-btn on" id="snap-btn">⊞ Snap</button>
+      <span style="color:var(--muted);font-size:10px;margin-left:2px;">Shift=even · Ctrl=centre</span>
+    </div>
+    <div class="preview-bar">
+      <div class="fps-grp">
+        <button class="fpsbtn" data-fps="25">25</button>
+        <button class="fpsbtn on" data-fps="30">30</button>
+        <button class="fpsbtn" data-fps="60">60</button>
+        <span class="fps-lbl">fps</span>
+      </div>
+      <div class="stage-grp">
+        <button class="sbtn on" id="btn-from" title="Show From frame (F)">From</button>
+        <button class="sbtn" id="btn-to" title="Show To frame (T)">To</button>
+      </div>
+      <div style="display:flex;gap:4px;margin-left:auto;">
+        <button id="btn-undo" title="Undo (Ctrl+Z)" style="background:var(--panel);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;" disabled>↩ Undo</button>
+        <button id="btn-redo" title="Redo (Ctrl+Y)" style="background:var(--panel);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;" disabled>↪ Redo</button>
+        <button id="btn-reset" title="Reset to last loaded preset/XML (or app defaults)" style="background:var(--panel);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;">⟳ Reset</button>
+      </div>
+      <span class="frame-ctr" id="fctr" style="margin-left:8px;">—</span>
+      <button id="playbtn" title="Play/Stop (Space)">▶ Play</button>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <div>
+      <div class="sec-hdr">Presets</div>
+      <div id="preset-list"></div>
+      <button id="btn-save-preset" style="width:100%;background:var(--panel);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:5px 8px;font-size:11px;cursor:pointer;margin-top:4px;">＋ Save current as preset</button>
+    </div>
+    <div>
+      <div class="sec-hdr">Motion</div>
+      <div class="ease-grid" id="ease-grid">
+        <button class="easebtn" data-ease="linear">Linear</button>
+        <button class="easebtn on" data-ease="easeInOutSine">Smooth</button>
+        <button class="easebtn" data-ease="easeInOutCubic">Ease Cubic</button>
+        <button class="easebtn" data-ease="easeInOutQuart">Ease Quart</button>
+        <button class="easebtn" data-ease="easeInSine">Ease In</button>
+        <button class="easebtn" data-ease="easeOutSine">Ease Out</button>
+        <button class="easebtn" data-ease="easeInOutBack">Bounce</button>
+        <button class="easebtn" data-ease="easeOutBack">Overshoot</button>
+      </div>
+    </div>
+    <div>
+      <div class="sec-hdr">Duration &amp; Export</div>
+      <div class="exp-row"><label>Duration (sec)</label><input type="number" id="duration" value="1.0" min="0.2" max="10" step="0.1"></div>
+      <div class="exp-row"><label>Macro name</label><input type="text" id="mname" value="SS Animate In"></div>
+      <div class="exp-row"><label>Macro index</label><input type="number" id="midx" value="1" min="1" max="99" style="max-width:60px"></div>
+      <button class="btnprimary" id="btn-dl">⬇ Download XML Macro</button>
+      <div style="display:flex;gap:6px;margin-top:4px;">
+        <button class="btnsec" id="btn-reverse" style="flex:1">⇄ Reverse Animation</button>
+        <button class="btnsec" id="btn-dl-rev" style="flex:1">⬇ Download Reversed</button>
+      </div>
+      <button class="btnsec" id="btn-xml">Show XML preview</button>
+      <pre class="xmlpre" id="xmlpre"></pre>
+    </div>
+    <div class="info">Import via <strong>ATEM Software Control → File → Restore</strong>. Trigger from Stream Deck with Bitfocus Companion.</div>
+  </div>
+</div>
+
+<script>
+// ── Devices ────────────────────────────────────────────────────────────────
+const DEVICES={
+  mini:{name:'ATEM Mini',sw:1,ss:0,cam:4,mp:1},
+  pro:{name:'ATEM Mini Pro',sw:1,ss:0,cam:4,mp:1},
+  proiso:{name:'ATEM Mini Pro ISO',sw:1,ss:0,cam:4,mp:1},
+  extreme:{name:'ATEM Mini Extreme',sw:1,ss:1,cam:8,mp:2},
+  extremeiso:{name:'ATEM Mini Extreme ISO',sw:1,ss:1,cam:8,mp:2},
+  sdi:{name:'ATEM SDI',sw:1,ss:0,cam:4,mp:1},
+  sdiproiso:{name:'ATEM SDI Pro ISO',sw:1,ss:0,cam:4,mp:1},
+  sdiextremeiso:{name:'ATEM SDI Extreme ISO',sw:1,ss:1,cam:8,mp:2},
+  tvstudio:{name:'ATEM Television Studio',sw:1,ss:0,cam:8,mp:2},
+  tvstudiohd:{name:'ATEM Television Studio HD',sw:1,ss:0,cam:8,mp:2},
+  tvstudioprohd:{name:'ATEM Television Studio Pro HD',sw:1,ss:0,cam:8,mp:2},
+  tvstudiopro4k:{name:'ATEM Television Studio Pro 4K',sw:1,ss:0,cam:8,mp:2},
+  production_st4k:{name:'ATEM Production Studio 4K',sw:1,ss:0,cam:8,mp:2},
+  production_1me4k:{name:'ATEM 1 M/E Production Studio 4K',sw:1,ss:0,cam:10,mp:2},
+  production_2me4k:{name:'ATEM 2 M/E Production Studio 4K',sw:2,ss:1,cam:20,mp:2},
+  broadcast_2me4k:{name:'ATEM 2 M/E Broadcast Studio 4K',sw:2,ss:1,cam:20,mp:2},
+  broadcast_4me4k:{name:'ATEM 4 M/E Broadcast Studio 4K',sw:4,ss:1,cam:20,mp:2},
+  constellation_1me_hd:{name:'ATEM 1 M/E Constellation HD',sw:1,ss:1,cam:10,mp:2},
+  constellation_2me_hd:{name:'ATEM 2 M/E Constellation HD',sw:2,ss:1,cam:20,mp:2},
+  constellation_4me_hd:{name:'ATEM 4 M/E Constellation HD',sw:4,ss:2,cam:40,mp:4},
+  constellation_1me_4k:{name:'ATEM 1 M/E Constellation 4K',sw:1,ss:1,cam:10,mp:2},
+  constellation_2me_4k:{name:'ATEM 2 M/E Constellation 4K',sw:2,ss:1,cam:20,mp:2},
+  constellation_4me_4k:{name:'ATEM 4 M/E Constellation 4K',sw:4,ss:2,cam:40,mp:4},
+  constellation_8k:{name:'ATEM Constellation 8K',sw:4,ss:1,cam:8,mp:4},
+};
+
+// ── Easings ────────────────────────────────────────────────────────────────
+const EASINGS={
+  linear:{p1:{x:.33,y:.33},p2:{x:.66,y:.66}},
+  easeInOutSine:{p1:{x:.37,y:0},p2:{x:.63,y:1}},
+  easeInOutCubic:{p1:{x:.65,y:0},p2:{x:.35,y:1}},
+  easeInOutQuart:{p1:{x:.76,y:0},p2:{x:.24,y:1}},
+  easeInSine:{p1:{x:.12,y:0},p2:{x:.39,y:0}},
+  easeOutSine:{p1:{x:.61,y:1},p2:{x:.88,y:1}},
+  easeInOutBack:{p1:{x:.68,y:-.6},p2:{x:.32,y:1.6}},
+  easeOutBack:{p1:{x:.34,y:1.56},p2:{x:.64,y:1}},
+};
+
+// ── Presets — from your actual XML files ───────────────────────────────────
+// Box values: {x, y, scale, cropL, cropT, cropR, cropB}
+// From = first frame of the XML, To = last frame
+const PRESETS=[
+  { name:'ENTER smooth (Box2 slides in from right)', icon:'→', easing:'easeInOutSine', dur:1.0,
+    boxes:[
+      {on:true, from:{x:0,y:0,scale:.999,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-10.6,y:0,scale:.750,cropL:9.980,cropT:0,cropR:10.710,cropB:0}},
+      {on:true, from:{x:32.689,y:-.021,scale:1.002,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:4.7,y:0,scale:.660,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+    ]},
+  { name:'ENTER fast (Box2 slides in quick)', icon:'⚡', easing:'easeInOutQuart', dur:0.5,
+    boxes:[
+      {on:true, from:{x:0,y:0,scale:.999,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-10.6,y:0,scale:.750,cropL:9.980,cropT:0,cropR:10.710,cropB:0}},
+      {on:true, from:{x:32.689,y:-.021,scale:1.002,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:4.7,y:0,scale:.660,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+    ]},
+  { name:'ENTER overshoot (Box2 overshoots position)', icon:'↩', easing:'easeOutBack', dur:0.8,
+    boxes:[
+      {on:true, from:{x:0,y:0,scale:.999,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-10.6,y:0,scale:.750,cropL:9.980,cropT:0,cropR:10.710,cropB:0}},
+      {on:true, from:{x:32.689,y:-.021,scale:1.002,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:4.7,y:0,scale:.660,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+    ]},
+  { name:'ENTER drop-in (Box2 drops from top)', icon:'⬇', easing:'easeInOutCubic', dur:0.8,
+    boxes:[
+      {on:true, from:{x:0,y:0,scale:.999,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-10.6,y:0,scale:.750,cropL:9.980,cropT:0,cropR:10.710,cropB:0}},
+      {on:true, from:{x:4.7,y:17.5,scale:.660,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:4.7,y:0,scale:.660,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+    ]},
+  { name:'ENTER pop (Box2 scale pops in)', icon:'💥', easing:'easeOutBack', dur:0.73,
+    boxes:[
+      {on:true, from:{x:0,y:0,scale:.999,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-10.6,y:0,scale:.750,cropL:9.980,cropT:0,cropR:10.710,cropB:0}},
+      {on:true, from:{x:4.7,y:0,scale:.010,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:4.7,y:0,scale:.660,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+    ]},
+  { name:'ENTER both fly in (both boxes from sides)', icon:'↔', easing:'easeInOutSine', dur:0.87,
+    boxes:[
+      {on:true, from:{x:-34,y:0,scale:.750,cropL:9.980,cropT:0,cropR:10.710,cropB:0},
+                  to:{x:-10.6,y:0,scale:.750,cropL:9.980,cropT:0,cropR:10.710,cropB:0}},
+      {on:true, from:{x:34,y:0,scale:.660,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:4.7,y:0,scale:.660,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+    ]},
+  { name:'EXIT to full Box1 smooth', icon:'◀', easing:'easeInOutSine', dur:1.0,
+    boxes:[
+      {on:true, from:{x:-10.6,y:0,scale:.750,cropL:9.980,cropT:0,cropR:10.710,cropB:0},
+                  to:{x:0,y:0,scale:.999,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:true, from:{x:4.7,y:0,scale:.660,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:32.689,y:-.021,scale:1.002,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+    ]},
+  { name:'EXIT to full Box2 smooth', icon:'▶', easing:'easeInOutSine', dur:1.0,
+    boxes:[
+      {on:true, from:{x:-10.6,y:0,scale:.750,cropL:9.980,cropT:0,cropR:10.710,cropB:0},
+                  to:{x:-38.589,y:0,scale:1.002,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:true, from:{x:4.7,y:0,scale:.660,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:0,y:0,scale:1.002,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+    ]},
+  { name:'ENTER fromB2 smooth (Box1 enters left)', icon:'←', easing:'easeInOutSine', dur:1.0,
+    boxes:[
+      {on:true, from:{x:-38.589,y:0,scale:1.002,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-10.6,y:0,scale:.750,cropL:9.980,cropT:0,cropR:10.710,cropB:0}},
+      {on:true, from:{x:0,y:0,scale:1.002,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:4.7,y:0,scale:.660,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+    ]},
+  { name:'ENTER fromB2 reveal (mask wipe)', icon:'🔲', easing:'easeInOutSine', dur:0.8,
+    boxes:[
+      {on:true, from:{x:-10.6,y:0,scale:.750,cropL:9.980,cropT:0,cropR:10.710,cropB:0},
+                  to:{x:-10.6,y:0,scale:.750,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:true, from:{x:0,y:0,scale:1.002,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:4.7,y:0,scale:.660,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:-8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+      {on:false,from:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0},
+                  to:{x:8,y:-4.5,scale:.5,cropL:0,cropT:0,cropR:0,cropB:0}},
+    ]},
+];
+
+const BCOLS=['#3b7fe8','#e05555','#d9921f','#3dba54'];
+const DZ={cropL:0,cropT:0,cropR:0,cropB:0};
+
+// ── State ──────────────────────────────────────────────────────────────────
+let S={
+  device:'constellation_2me_hd', sw:0, ss:0, fps:30, dur:1.0,
+  easing:'easeInOutSine', stage:'from', playing:false, raf:null,
+  selectedBox:null, selectedBoxes:new Set(),
+  snap:true, zoom:1.0, panX:0, panY:0,
+  undoStack:[], redoStack:[], selRect:null,
+  savedState:null, // last loaded preset/XML — reset returns here
+  boxes:[
+    {on:true, src:'Camera1', from:{x:0,y:0,scale:.999,...DZ}, to:{x:-10.6,y:0,scale:.750,cropL:9.98,cropT:0,cropR:10.71,cropB:0}},
+    {on:true, src:'Camera2', from:{x:32.689,y:-.021,scale:1.002,...DZ}, to:{x:4.7,y:0,scale:.660,...DZ}},
+    {on:false,src:'Camera3', from:{x:-8,y:-4.5,scale:.5,...DZ}, to:{x:-8,y:-4.5,scale:.5,...DZ}},
+    {on:false,src:'Camera4', from:{x:8,y:-4.5,scale:.5,...DZ}, to:{x:8,y:-4.5,scale:.5,...DZ}},
+  ],
+};
+
+// ── Bezier engine ──────────────────────────────────────────────────────────
+function bez(t,p0,p1,p2,p3){
+  const cx=3*(p1.x-p0.x),bx=3*(p2.x-p1.x)-cx,ax=p3.x-p0.x-cx-bx;
+  const cy=3*(p1.y-p0.y),by=3*(p2.y-p1.y)-cy,ay=p3.y-p0.y-cy-by;
+  return{x:ax*t**3+bx*t**2+cx*t+p0.x,y:ay*t**3+by*t**2+cy*t+p0.y};
+}
+function curveVals(pts,frames){
+  frames=Math.max(frames,1);
+  const acc=.005,fo=1/frames,vals=[];
+  let last={x:0,y:0},fx=.0001;
+  const p0={x:0,y:0},p3={x:1,y:1};
+  for(let i=0;Math.ceil(i)<=1;i+=acc){
+    const pt=bez(i,p0,pts.p1,pts.p2,p3);
+    while(fx<=pt.x){vals.push(last.y+(pt.y-last.y)*((fx-last.x)/(pt.x-last.x)));fx+=fo;}
+    last=pt;
+  }
+  while(vals.length<frames+2)vals.push(1);
+  return vals;
+}
+function lerp(a,b,f){return a+f*(b-a);}
+
+function renderFrames(){
+  const pts=EASINGS[S.easing];
+  const frames=Math.round(S.fps*S.dur);
+  const cv=curveVals(pts,frames);
+  const props=['x','y','scale','cropL','cropT','cropR','cropB'];
+  const rendered=S.boxes.map(box=>{
+    if(!box.on)return null;
+    const r={};
+    props.forEach(p=>{
+      const a=box.from[p]??0,b=box.to[p]??0;
+      r[p]=[a];
+      for(let f=1;f<=frames;f++)r[p].push(lerp(a,b,cv[f]??1));
+    });
+    return r;
+  });
+  return{rendered,maxFrames:frames};
+}
+
+// ── Canvas ─────────────────────────────────────────────────────────────────
+const cv=document.getElementById('cv');
+const ctx=cv.getContext('2d');
+const CW=1920,CH=1080;
+// Total canvas size — extra space around frame so off-screen boxes are visible
+const MARG=540; // px margin each side (540 = half a frame height)
+const TCW=CW+MARG*2, TCH=CH+MARG*2;
+// Frame top-left in canvas coords
+const FX=MARG, FY=MARG;
+
+// Map BMD coordinates into total canvas pixels
+// x range ±16 = full width, y range ±9 = full height
+// So pixel scale = CW/32 horizontal, CH/18 vertical
+const BMD_SX = CW/32;  // px per BMD x-unit
+const BMD_SY = CH/18;  // px per BMD y-unit
+
+function b2c(x,y){
+  return{
+    x: FX + CW/2 + x*BMD_SX,
+    y: FY + CH/2 - y*BMD_SY,
+  };
+}
+
+function getBoxRect(bi,stage){
+  const p=S.boxes[bi][stage];
+  const sc=p.scale,hw=16*sc,hh=9*sc;
+  const c=b2c(p.x,p.y);
+  const sx=BMD_SX,sy=BMD_SY;
+  return{
+    l:c.x-hw*sx+(p.cropL||0)*sc*sx,
+    t:c.y-hh*sy+(p.cropT||0)*sc*sy,
+    r:c.x+hw*sx-(p.cropR||0)*sc*sx,
+    b:c.y+hh*sy-(p.cropB||0)*sc*sy,
+    cx:c.x,cy:c.y,
+    hw:hw*sx,hh:hh*sy,
+  };
+}
+
+function drawFrame(fi){
+  ctx.clearRect(0,0,TCW,TCH);
+  // Off-frame area — dark grey to show where the frame boundary is
+  ctx.fillStyle='#0a0a0c';ctx.fillRect(0,0,TCW,TCH);
+  // Frame area — slightly lighter
+  ctx.fillStyle='#111116';ctx.fillRect(FX,FY,CW,CH);
+
+  // Frame border — bright so it reads clearly as "this is the edge"
+  ctx.strokeStyle='rgba(255,255,255,0.25)';ctx.lineWidth=4;
+  ctx.strokeRect(FX,FY,CW,CH);
+
+  // "OUT OF FRAME" label in the margins
+  ctx.fillStyle='rgba(255,255,255,0.07)';
+  ctx.font=`bold ${Math.round(MARG*0.12)}px sans-serif`;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('OUT OF FRAME', TCW/2, FY/2);
+  ctx.fillText('OUT OF FRAME', TCW/2, FY+CH+MARG/2);
+  ctx.save();ctx.translate(FX/2,TCH/2);ctx.rotate(-Math.PI/2);
+  ctx.fillText('OUT OF FRAME',0,0);ctx.restore();
+  ctx.save();ctx.translate(FX+CW+MARG/2,TCH/2);ctx.rotate(Math.PI/2);
+  ctx.fillText('OUT OF FRAME',0,0);ctx.restore();
+
+  // Centre cross on frame
+  const cc=b2c(0,0);
+  ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(FX,cc.y);ctx.lineTo(FX+CW,cc.y);
+  ctx.moveTo(cc.x,FY);ctx.lineTo(cc.x,FY+CH);ctx.stroke();
+
+  const{rendered,maxFrames}=renderFrames();
+  const f=fi<0?-1:Math.min(fi,maxFrames);
+
+  // ── Draw canvas grid (only within frame) ───────────────────────────────
+  const fL=FX, fT=FY, fR=FX+CW, fB=FY+CH;
+
+  if(S.snap){
+    ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=1;
+    const gStep=0.5;
+    for(let gx=-16;gx<=16;gx+=gStep){
+      const px=b2c(gx,0).x;
+      ctx.beginPath();ctx.moveTo(px,fT);ctx.lineTo(px,fB);ctx.stroke();
+    }
+    for(let gy=-9;gy<=9;gy+=gStep){
+      const py=b2c(0,gy).y;
+      ctx.beginPath();ctx.moveTo(fL,py);ctx.lineTo(fR,py);ctx.stroke();
+    }
+  }
+
+  // Rule-of-thirds (only in-frame)
+  ctx.strokeStyle='rgba(255,255,255,0.07)';ctx.lineWidth=1;
+  for(let i=1;i<3;i++){
+    const px=fL+CW*i/3;
+    ctx.beginPath();ctx.moveTo(px,fT);ctx.lineTo(px,fB);ctx.stroke();
+    const py=fT+CH*i/3;
+    ctx.beginPath();ctx.moveTo(fL,py);ctx.lineTo(fR,py);ctx.stroke();
+  }
+
+  S.boxes.forEach((box,bi)=>{
+    if(!box.on)return;
+    const anim=rendered[bi];
+    let p;
+    if(anim&&f>=0){
+      p={};
+      ['x','y','scale','cropL','cropT','cropR','cropB'].forEach(k=>{
+        p[k]=anim[k]?anim[k][Math.min(f,anim[k].length-1)]:box.from[k]||0;
+      });
+    }else{
+      p={...box[S.stage]};
+    }
+    const sc=p.scale,hw=16*sc,hh=9*sc;
+    const bc=b2c(p.x,p.y),sx=BMD_SX,sy=BMD_SY;
+    const ul=bc.x-hw*sx, ut=bc.y-hh*sy, ur=bc.x+hw*sx, ub=bc.y+hh*sy;
+    const l=ul+(p.cropL||0)*sc*sx;
+    const t=ut+(p.cropT||0)*sc*sy;
+    const r=ur-(p.cropR||0)*sc*sx;
+    const b=ub-(p.cropB||0)*sc*sy;
+    const bw=r-l,bh=b-t;
+    if(bw<2||bh<2)return;
+
+    const col=BCOLS[bi];
+    const isSel=(S.selectedBox===bi||S.selectedBoxes.has(bi))&&!S.playing&&fi<0;
+
+    // cropped-away ghost (dashed outline of uncropped area)
+    if(isSel){
+      ctx.setLineDash([16,10]);
+      ctx.strokeStyle=col+'55';ctx.lineWidth=2;
+      ctx.strokeRect(ul,ut,ur-ul,ub-ut);
+      ctx.setLineDash([]);
+      ctx.fillStyle=col+'18';ctx.fillRect(ul,ut,ur-ul,ub-ut);
+    }
+
+    // main visible box fill
+    ctx.fillStyle=col+(isSel?'66':'44');
+    ctx.fillRect(l,t,bw,bh);
+
+    // border — brighter if selected
+    ctx.strokeStyle=col;
+    ctx.lineWidth=isSel?4:2;
+    ctx.strokeRect(l+1,t+1,bw-2,bh-2);
+
+    // inner grid lines (centre cross + thirds) on selected box
+    if(isSel){
+      ctx.strokeStyle=col+'44';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(l,t+bh/2);ctx.lineTo(r,t+bh/2);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(l+bw/2,t);ctx.lineTo(l+bw/2,b);ctx.stroke();
+      // thirds
+      for(let i=1;i<3;i++){
+        ctx.beginPath();ctx.moveTo(l+bw*i/3,t);ctx.lineTo(l+bw*i/3,b);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(l,t+bh*i/3);ctx.lineTo(r,t+bh*i/3);ctx.stroke();
+      }
+    }
+
+    // label
+    const fs=Math.max(16,Math.round(bh*.13));
+    ctx.fillStyle='#fff';ctx.font=`bold ${fs}px sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(`Box ${bi+1}`,l+bw/2,t+bh/2-(box.src&&box.src!=='0'?fs*.45:0));
+    if(box.src&&box.src!=='0'){
+      const sf=Math.max(11,Math.round(bh*.09));
+      ctx.font=`${sf}px sans-serif`;ctx.fillStyle='rgba(255,255,255,.6)';
+      ctx.fillText(box.src,l+bw/2,t+bh/2+fs*.65);
+    }
+
+    // ── Photoshop-style handles — only on selected box ────────────────────
+    if(isSel){
+      // Square handle size — small, tight to box edges like PS
+      const HS=28; // half-size of square handle in canvas px
+      const HH=HS*2; // full handle side
+
+      function sqHandle(hx,hy,fillCol,strokeCol){
+        ctx.fillStyle=fillCol;
+        ctx.fillRect(hx-HS,hy-HS,HH,HH);
+        ctx.strokeStyle=strokeCol;ctx.lineWidth=2;
+        ctx.strokeRect(hx-HS,hy-HS,HH,HH);
+      }
+
+      // ── 4 corner scale handles — white squares on uncropped corners
+      [
+        {hx:ul,hy:ut},{hx:ur,hy:ut},
+        {hx:ul,hy:ub},{hx:ur,hy:ub},
+      ].forEach(({hx,hy})=>sqHandle(hx,hy,'#fff',col));
+
+      // ── 4 crop/mask handles — coloured squares at uncropped edge midpoints
+      // Visually distinct from corners: box-colour fill, white border
+      [
+        {hx:(ul+ur)/2,hy:ut},
+        {hx:(ul+ur)/2,hy:ub},
+        {hx:ul,hy:(ut+ub)/2},
+        {hx:ur,hy:(ut+ub)/2},
+      ].forEach(({hx,hy})=>sqHandle(hx,hy,col,'#fff'));
+    }
+  });
+
+  // ── Selection rectangle ────────────────────────────────────────────────
+  if(S.selRect){
+    // selRect stored in CSS frame-relative px; convert to canvas px via s
+    const _cvs=cv.getBoundingClientRect().width/TCW;
+    const sL=Math.min(S.selRect.startX,S.selRect.endX)/_cvs+FX;
+    const sT=Math.min(S.selRect.startY,S.selRect.endY)/_cvs+FY;
+    const sR=Math.max(S.selRect.startX,S.selRect.endX)/_cvs+FX;
+    const sB=Math.max(S.selRect.startY,S.selRect.endY)/_cvs+FY;
+    ctx.strokeStyle='rgba(91,127,255,0.9)';ctx.lineWidth=2;
+    ctx.setLineDash([8,4]);
+    ctx.strokeRect(sL,sT,sR-sL,sB-sT);
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(91,127,255,0.08)';
+    ctx.fillRect(sL,sT,sR-sL,sB-sT);
+  }
+
+  // ── Selection rectangle ────────────────────────────────────────────────
+  if(S.selRect){
+    const rs=cv.getBoundingClientRect().width/TCW;
+    const sL=Math.min(S.selRect.x0,S.selRect.x1)/rs+FX;
+    const sT=Math.min(S.selRect.y0,S.selRect.y1)/rs+FY;
+    const sR=Math.max(S.selRect.x0,S.selRect.x1)/rs+FX;
+    const sB=Math.max(S.selRect.y0,S.selRect.y1)/rs+FY;
+    ctx.save();
+    ctx.strokeStyle='rgba(91,127,255,0.9)';ctx.lineWidth=2;ctx.setLineDash([10,5]);
+    ctx.strokeRect(sL,sT,sR-sL,sB-sT);
+    ctx.fillStyle='rgba(91,127,255,0.07)';ctx.fillRect(sL,sT,sR-sL,sB-sT);
+    ctx.setLineDash([]);ctx.restore();
+  }
+
+  // ── Snap guide lines (centre + edge) ─────────────────────────────────
+  if(!S.playing&&fi<0&&S.selectedBox!==null&&S.snap){
+    const bi=S.selectedBox;
+    if(S.boxes[bi].on){
+      const p=S.boxes[bi][S.stage];
+      const bc=b2c(p.x,p.y);
+      const hw=16*p.scale*BMD_SX, hh=9*p.scale*BMD_SY;
+      const CX=FX+CW/2, CY=FY+CH/2;
+      const THRESH=22; // canvas px
+      ctx.save();ctx.setLineDash([8,5]);ctx.lineWidth=1.5;
+      // Centre X guide
+      if(Math.abs(bc.x-CX)<THRESH){
+        ctx.strokeStyle='rgba(91,127,255,0.8)';
+        ctx.beginPath();ctx.moveTo(CX,FY);ctx.lineTo(CX,FY+CH);ctx.stroke();
+      }
+      // Centre Y guide
+      if(Math.abs(bc.y-CY)<THRESH){
+        ctx.strokeStyle='rgba(91,127,255,0.8)';
+        ctx.beginPath();ctx.moveTo(FX,CY);ctx.lineTo(FX+CW,CY);ctx.stroke();
+      }
+      // Right edge snap
+      if(Math.abs(bc.x+hw-(FX+CW))<THRESH){
+        ctx.strokeStyle='rgba(52,211,153,0.8)';
+        ctx.beginPath();ctx.moveTo(FX+CW,FY);ctx.lineTo(FX+CW,FY+CH);ctx.stroke();
+      }
+      // Left edge snap
+      if(Math.abs(bc.x-hw-FX)<THRESH){
+        ctx.strokeStyle='rgba(52,211,153,0.8)';
+        ctx.beginPath();ctx.moveTo(FX,FY);ctx.lineTo(FX,FY+CH);ctx.stroke();
+      }
+      // Top edge snap
+      if(Math.abs(bc.y-hh-FY)<THRESH){
+        ctx.strokeStyle='rgba(52,211,153,0.8)';
+        ctx.beginPath();ctx.moveTo(FX,FY);ctx.lineTo(FX+CW,FY);ctx.stroke();
+      }
+      // Bottom edge snap
+      if(Math.abs(bc.y+hh-(FY+CH))<THRESH){
+        ctx.strokeStyle='rgba(52,211,153,0.8)';
+        ctx.beginPath();ctx.moveTo(FX,FY+CH);ctx.lineTo(FX+CW,FY+CH);ctx.stroke();
+      }
+      ctx.setLineDash([]);ctx.restore();
+    }
+  }
+
+  // frame counter overlay during play
+  if(S.playing){
+    ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(CW-150,CH-46,136,34);
+    ctx.fillStyle='#fff';ctx.font='bold 20px monospace';
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(`${String(Math.max(0,f)).padStart(3,'0')} / ${maxFrames}`,CW-14,CH-29);
+  }
+}
+
+function redraw(){
+  if(!S.playing)drawFrame(-1);
+  // Update stage column highlights on box cards
+  document.querySelectorAll('.ph-lbl[id^="ph-from-"]').forEach(el=>{
+    el.style.color=S.stage==='from'?'var(--accent)':'var(--muted)';
+  });
+  document.querySelectorAll('.ph-lbl[id^="ph-to-"]').forEach(el=>{
+    el.style.color=S.stage==='to'?'var(--accent)':'var(--muted)';
+  });
+}
+
+// ── Playback ───────────────────────────────────────────────────────────────
+function startPlay(){
+  if(S.playing){stopPlay(false);return;}
+  const{maxFrames}=renderFrames();
+  S.playing=true;
+  const btn=document.getElementById('playbtn');
+  btn.textContent='■ Stop';btn.classList.add('playing');
+  const mspf=1000/S.fps,t0=performance.now();
+  function tick(now){
+    if(!S.playing)return;
+    const f=Math.floor((now-t0)/mspf);
+    document.getElementById('fctr').textContent=`${Math.min(f,maxFrames)} / ${maxFrames}`;
+    drawFrame(f);
+    if(f>maxFrames+4){stopPlay(true);return;}
+    S.raf=requestAnimationFrame(tick);
+  }
+  S.raf=requestAnimationFrame(tick);
+}
+function stopPlay(atEnd){
+  cancelAnimationFrame(S.raf);S.playing=false;
+  const btn=document.getElementById('playbtn');
+  btn.textContent='▶ Play';btn.classList.remove('playing');
+  document.getElementById('fctr').textContent='—';
+  if(atEnd){
+    S.stage='to';
+    document.getElementById('btn-to').classList.add('on');
+    document.getElementById('btn-from').classList.remove('on');
+  }
+  drawFrame(-1);
+}
+
+// ── Sources ────────────────────────────────────────────────────────────────
+function getSrcs(){
+  const d=DEVICES[S.device]||{cam:8,mp:2,ss:0};
+  const list=[{id:'0',lbl:'— No source —'},{id:'Black',lbl:'Black'},{id:'ColorBars',lbl:'Color Bars'},{id:'Color1',lbl:'Color 1'},{id:'Color2',lbl:'Color 2'}];
+  for(let i=1;i<=d.cam;i++)list.push({id:`Camera${i}`,lbl:`Camera ${i}`});
+  for(let i=1;i<=d.mp;i++)list.push({id:`MediaPlayer${i}`,lbl:`Media Player ${i}`});
+  if(d.ss>0)list.push({id:'SuperSource',lbl:'SuperSource'});
+  return list;
+}
+function srcOpts(sel){return getSrcs().map(s=>`<option value="${s.id}"${s.id===sel?' selected':''}>${s.lbl}</option>`).join('');}
+
+// ── Scrub on number inputs ─────────────────────────────────────────────────
+// Pointer-based scrub: drag horizontally to change value, click to type
+function attachScrub(inp){
+  let dragging=false,startX=0,startVal=0,moved=false;
+  const step=Math.abs(parseFloat(inp.step)||0.5);
+
+  inp.addEventListener('pointerdown',e=>{
+    if(inp===document.activeElement)return; // already focused → normal typing
+    e.preventDefault();
+    inp.setPointerCapture(e.pointerId);
+    dragging=true;moved=false;
+    startX=e.clientX;
+    startVal=parseFloat(inp.value)||0;
+  });
+  inp.addEventListener('pointermove',e=>{
+    if(!dragging)return;
+    const dx=e.clientX-startX;
+    if(Math.abs(dx)>2)moved=true;
+    const delta=Math.round(dx/3)*step;
+    const raw=startVal+delta;
+    const mn=inp.min!==''?parseFloat(inp.min):-Infinity;
+    const mx=inp.max!==''?parseFloat(inp.max):Infinity;
+    const v=Math.max(mn,Math.min(mx,raw));
+    inp.value=parseFloat(v.toFixed(3));
+    inp.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  inp.addEventListener('pointerup',e=>{
+    if(!moved&&dragging){
+      // just a click, no drag — focus for typing
+      inp.select();
+    }
+    dragging=false;
+  });
+}
+
+// ── Build box cards ────────────────────────────────────────────────────────
+function buildBoxes(){
+  const body=document.getElementById('left-body');
+  body.innerHTML='';
+  S.boxes.forEach((box,bi)=>{
+    const card=document.createElement('div');
+    card.className='box-card'+(box.on?'':' off');
+
+    const props=['x','y','scale'];
+    const crops=['cropL','cropT','cropR','cropB'];
+    const cropLabels={cropL:'◀ L',cropT:'▲ T',cropR:'▶ R',cropB:'▼ B'};
+
+    card.innerHTML=`
+<div class="box-hdr">
+  <div class="box-dot" style="background:${BCOLS[bi]}"></div>
+  <span>Box ${bi+1}</span>
+  <input type="checkbox" class="toggle box-en" data-bi="${bi}" ${box.on?'checked':''}>
+</div>
+<div class="box-body">
+  <div class="src-row">
+    <label>source</label>
+    <select class="src-sel" data-bi="${bi}">${srcOpts(box.src)}</select>
+  </div>
+  <div class="prop-header">
+    <div></div><div class="ph-lbl">From</div><div class="ph-lbl">To</div>
+  </div>
+  ${props.map(p=>`
+  <div class="prop-row">
+    <div class="prop-lbl">${p==='scale'?'size':p}</div>
+    <input class="num" data-bi="${bi}" data-stage="from" data-prop="${p}" data-step="${p==='scale'?.05:.5}" type="number" value="${(box.from[p]||0).toFixed(3)}" step="${p==='scale'?.05:.5}">
+    <input class="num" data-bi="${bi}" data-stage="to" data-prop="${p}" data-step="${p==='scale'?.05:.5}" type="number" value="${(box.to[p]||0).toFixed(3)}" step="${p==='scale'?.05:.5}">
+  </div>`).join('')}
+  <div class="section-sep">
+    <div class="section-sep-lbl">Crop / Mask</div>
+    ${crops.map(p=>`
+  <div class="prop-row">
+    <div class="prop-lbl">${cropLabels[p]}</div>
+    <input class="num" data-bi="${bi}" data-stage="from" data-prop="${p}" data-step="0.25" type="number" value="${(box.from[p]||0).toFixed(3)}" step="0.25" min="0">
+    <input class="num" data-bi="${bi}" data-stage="to" data-prop="${p}" data-step="0.25" type="number" value="${(box.to[p]||0).toFixed(3)}" step="0.25" min="0">
+  </div>`).join('')}
+  </div>
+</div>`;
+
+    body.appendChild(card);
+
+    card.querySelector('.box-en').addEventListener('change',e=>{
+      S.boxes[bi].on=e.target.checked;
+      card.className='box-card'+(e.target.checked?'':' off');
+      redraw();
+    });
+    card.querySelector('.src-sel').addEventListener('change',e=>{
+      S.boxes[bi].src=e.target.value;redraw();
+    });
+    card.querySelectorAll('.num').forEach(inp=>{
+      // typing
+      inp.addEventListener('change',e=>{
+        const{bi:b,stage,prop}=e.target.dataset;
+        const v=parseFloat(e.target.value);
+        if(!isNaN(v)){S.boxes[b][stage][prop]=v;redraw();}
+      });
+      inp.addEventListener('input',e=>{
+        const{bi:b,stage,prop}=e.target.dataset;
+        const v=parseFloat(e.target.value);
+        if(!isNaN(v)){S.boxes[b][stage][prop]=v;redraw();}
+      });
+      // scrub
+      attachScrub(inp);
+    });
+  });
+}
+
+// ── Build presets (right panel) ───────────────────────────────────────────
+function buildPresets(){
+  const list=document.getElementById('preset-list');
+  list.innerHTML='';
+  PRESETS.forEach(p=>{
+    const el=document.createElement('div');
+    el.className='preset-item';
+    el.innerHTML=`<span class="pi">${p.icon}</span><span>${p.name}</span>`;
+    el.addEventListener('click',()=>{
+      pushUndo();
+      p.boxes.forEach((b,bi)=>{
+        S.boxes[bi].on=b.on;
+        S.boxes[bi].from={...b.from};
+        S.boxes[bi].to={...b.to};
+      });
+      if(p.easing)S.easing=p.easing;
+      if(p.dur)S.dur=p.dur;
+      document.querySelectorAll('.easebtn').forEach(b=>b.classList.toggle('on',b.dataset.ease===S.easing));
+      document.getElementById('duration').value=S.dur.toFixed(1);
+      buildBoxes();
+      saveResetPoint();
+      redraw();
+    });
+    list.appendChild(el);
+  });
+  buildCustomPresetItems();
+}
+
+// ── Undo / Redo ────────────────────────────────────────────────────────────
+const MAX_UNDO=10;
+function snapshotBoxes(){ return S.boxes.map(b=>({on:b.on,src:b.src,from:{...b.from},to:{...b.to}})); }
+function pushUndo(){
+  S.undoStack.push(snapshotBoxes());
+  if(S.undoStack.length>MAX_UNDO)S.undoStack.shift();
+  S.redoStack=[];
+  updateUndoBtns();
+}
+function updateUndoBtns(){
+  const u=document.getElementById('btn-undo'),r=document.getElementById('btn-redo');
+  u.disabled=!S.undoStack.length; r.disabled=!S.redoStack.length;
+  u.style.color=S.undoStack.length?'var(--text)':'var(--muted)';
+  r.style.color=S.redoStack.length?'var(--text)':'var(--muted)';
+}
+function applySnapshot(snap){
+  snap.forEach((b,bi)=>{S.boxes[bi].on=b.on;S.boxes[bi].src=b.src;S.boxes[bi].from={...b.from};S.boxes[bi].to={...b.to};});
+  buildBoxes();redraw();
+}
+document.getElementById('btn-undo').addEventListener('click',()=>{
+  if(!S.undoStack.length)return;
+  S.redoStack.push(snapshotBoxes());
+  applySnapshot(S.undoStack.pop());
+  updateUndoBtns();
+});
+document.getElementById('btn-redo').addEventListener('click',()=>{
+  if(!S.redoStack.length)return;
+  S.undoStack.push(snapshotBoxes());
+  applySnapshot(S.redoStack.pop());
+  updateUndoBtns();
+});
+function saveResetPoint(){
+  S.savedState={
+    boxes:S.boxes.map(b=>({on:b.on,src:b.src,from:{...b.from},to:{...b.to}})),
+    easing:S.easing, dur:S.dur,
+  };
+}
+
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  pushUndo();
+  if(S.savedState){
+    // Restore to last loaded preset/XML state
+    S.boxes=S.savedState.boxes.map(b=>({on:b.on,src:b.src,from:{...b.from},to:{...b.to}}));
+    S.easing=S.savedState.easing;
+    S.dur=S.savedState.dur;
+    document.querySelectorAll('.easebtn').forEach(b=>b.classList.toggle('on',b.dataset.ease===S.easing));
+    document.getElementById('duration').value=S.dur.toFixed(1);
+  } else {
+    // No saved state — reset to app defaults (first-run state)
+    const dz={cropL:0,cropT:0,cropR:0,cropB:0};
+    S.boxes=[
+      {on:true, src:'Camera1',from:{x:0,y:0,scale:.999,...dz},to:{x:-10.6,y:0,scale:.750,cropL:9.98,cropT:0,cropR:10.71,cropB:0}},
+      {on:true, src:'Camera2',from:{x:32.689,y:-.021,scale:1.002,...dz},to:{x:4.7,y:0,scale:.660,...dz}},
+      {on:false,src:'Camera3',from:{x:-8,y:-4.5,scale:.5,...dz},to:{x:-8,y:-4.5,scale:.5,...dz}},
+      {on:false,src:'Camera4',from:{x:8,y:-4.5,scale:.5,...dz},to:{x:8,y:-4.5,scale:.5,...dz}},
+    ];
+    S.easing='easeInOutSine'; S.dur=1.0;
+  }
+  S.selectedBox=null;S.selectedBoxes=new Set();
+  buildBoxes();redraw();
+});
+document.addEventListener('keydown',e=>{
+  const tag=document.activeElement.tagName;
+  const typing=tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!e.shiftKey){e.preventDefault();document.getElementById('btn-undo').click();}
+  if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.key==='z'&&e.shiftKey))){e.preventDefault();document.getElementById('btn-redo').click();}
+  if(typing)return; // don't intercept when user is typing in an input
+  if(e.key===' '||e.code==='Space'){e.preventDefault();startPlay();}
+  if(e.key==='f'||e.key==='F'){
+    S.stage='from';
+    document.getElementById('btn-from').classList.add('on');
+    document.getElementById('btn-to').classList.remove('on');
+    redraw();
+  }
+  if(e.key==='t'||e.key==='T'){
+    S.stage='to';
+    document.getElementById('btn-to').classList.add('on');
+    document.getElementById('btn-from').classList.remove('on');
+    redraw();
+  }
+  if(e.key==='Escape'){S.selectedBox=null;S.selectedBoxes=new Set();highlightBoxCard(-1);redraw();}
+  if(e.key==='r'||e.key==='R'){document.getElementById('btn-reverse').click();}
+});
+
+// ── Canvas interaction ─────────────────────────────────────────────────────
+(function(){
+  let drag=null;
+  const SNAP_POS=0.5,SNAP_THRESH_BMD=0.35,HS_CV=32;
+
+  function boxGeom(bi){
+    const p=S.boxes[bi][S.stage];
+    const sc=p.scale,hw=16*sc,hh=9*sc;
+    const bc=b2c(p.x,p.y);
+    const ul=bc.x-hw*BMD_SX-FX, ut=bc.y-hh*BMD_SY-FY;
+    const ur=bc.x+hw*BMD_SX-FX, ub=bc.y+hh*BMD_SY-FY;
+    const l=ul+(p.cropL||0)*sc*BMD_SX, t=ut+(p.cropT||0)*sc*BMD_SY;
+    const r=ur-(p.cropR||0)*sc*BMD_SX, b=ub-(p.cropB||0)*sc*BMD_SY;
+    return{ul,ut,ur,ub,l,t,r,b};
+  }
+
+  function getHandles(bi){
+    const g=boxGeom(bi);
+    return[
+      {cx:g.ul,cy:g.ut,type:'scale',corner:'tl',cur:'nwse-resize'},
+      {cx:g.ur,cy:g.ut,type:'scale',corner:'tr',cur:'nesw-resize'},
+      {cx:g.ul,cy:g.ub,type:'scale',corner:'bl',cur:'nesw-resize'},
+      {cx:g.ur,cy:g.ub,type:'scale',corner:'br',cur:'nwse-resize'},
+      {cx:(g.ul+g.ur)/2,cy:g.ut,type:'cropT',cur:'ns-resize'},
+      {cx:(g.ul+g.ur)/2,cy:g.ub,type:'cropB',cur:'ns-resize'},
+      {cx:g.ul,cy:(g.ut+g.ub)/2,type:'cropL',cur:'ew-resize'},
+      {cx:g.ur,cy:(g.ut+g.ub)/2,type:'cropR',cur:'ew-resize'},
+    ];
+  }
+
+  function getCanvasTransform(){
+    const rect=cv.getBoundingClientRect();
+    const s=rect.width/TCW;
+    return{rendW:CW*s,rendH:CH*s,offX:MARG*s,offY:MARG*s,s,rect};
+  }
+  function cssPx(e){
+    const{s,rect,offX,offY}=getCanvasTransform();
+    return{mx:e.clientX-rect.left-offX, my:e.clientY-rect.top-offY, s};
+  }
+
+  function findHit(e){
+    if(S.playing)return null;
+    const{mx,my,s}=cssPx(e);
+    const HS=HS_CV*s;
+    function oh(h){return Math.abs(mx-h.cx*s)<HS&&Math.abs(my-h.cy*s)<HS;}
+    function ob(bi){const g=boxGeom(bi);return mx>=g.ul*s&&mx<=g.ur*s&&my>=g.ut*s&&my<=g.ub*s;}
+    // Pass 1: handles on primary selected box
+    if(S.selectedBox!==null&&S.boxes[S.selectedBox].on)
+      for(const h of getHandles(S.selectedBox)) if(oh(h)) return{bi:S.selectedBox,h};
+    // Pass 2: handles on other selected boxes
+    for(const bi of S.selectedBoxes){
+      if(bi===S.selectedBox||!S.boxes[bi].on)continue;
+      for(const h of getHandles(bi)) if(oh(h)) return{bi,h};
+    }
+    // Pass 3: handles on unselected
+    for(let bi=3;bi>=0;bi--){
+      if(S.selectedBoxes.has(bi)||bi===S.selectedBox||!S.boxes[bi].on)continue;
+      for(const h of getHandles(bi)) if(oh(h)) return{bi,h};
+    }
+    // Pass 4: body
+    const order=S.selectedBox!==null?[S.selectedBox,...[0,1,2,3].filter(i=>i!==S.selectedBox).reverse()]:[3,2,1,0];
+    for(const bi of order){if(!S.boxes[bi].on)continue;if(ob(bi))return{bi,h:{type:'body',cur:'move'}};}
+    return null;
+  }
+
+  // ── Snap helpers ────────────────────────────────────────────────────────
+  function snapVal(v){
+    if(!S.snap)return v;
+    if(Math.abs(v)<SNAP_THRESH_BMD)return 0; // centre snap
+    return Math.round(v/SNAP_POS)*SNAP_POS;
+  }
+  function snapEdges(p){
+    if(!S.snap)return p;
+    const hw=16*p.scale,hh=9*p.scale;
+    // Edge snap: if right/left edge is within threshold of ±16, snap it
+    let{x,y}=p;
+    if(Math.abs(x+hw-16)<SNAP_THRESH_BMD)x=16-hw;
+    else if(Math.abs(x-hw+16)<SNAP_THRESH_BMD)x=-16+hw;
+    if(Math.abs(y+hh-9)<SNAP_THRESH_BMD)y=9-hh;
+    else if(Math.abs(y-hh+9)<SNAP_THRESH_BMD)y=-9+hh;
+    return{x,y};
+  }
+  function snapScale(v){ return S.snap?Math.round(v/0.05)*0.05:v; }
+
+  // ── mousedown ────────────────────────────────────────────────────────────
+  cv.addEventListener('mousedown',e=>{
+    if(S.playing)return;
+    const hit=findHit(e);
+    const{mx,my,s}=cssPx(e);
+
+    if(!hit){
+      if(!e.shiftKey){S.selectedBox=null;S.selectedBoxes=new Set();highlightBoxCard(-1);}
+      S.selRect={x0:mx,y0:my,x1:mx,y1:my};
+      drag={type:'selrect'};
+      cv.style.cursor='crosshair';
+      redraw();return;
+    }
+    const{bi,h}=hit;
+
+    if(h.type==='body'&&e.shiftKey){
+      if(S.selectedBoxes.has(bi))S.selectedBoxes.delete(bi);
+      else{S.selectedBoxes.add(bi);S.selectedBox=bi;}
+      highlightBoxCard(bi);redraw();return;
+    }
+
+    if(h.type==='body'){
+      if(!S.selectedBoxes.has(bi)){S.selectedBoxes=new Set([bi]);S.selectedBox=bi;highlightBoxCard(bi);}
+      pushUndo();
+      const allProps={};
+      S.selectedBoxes.forEach(b=>allProps[b]={...S.boxes[b][S.stage]});
+      drag={type:'move',bi,startX:e.clientX,startY:e.clientY,allProps};
+      cv.style.cursor='grabbing';redraw();return;
+    }
+
+    if(!S.selectedBoxes.has(bi)){S.selectedBoxes=new Set([bi]);S.selectedBox=bi;highlightBoxCard(bi);}
+    pushUndo();
+    e.preventDefault();
+    drag={type:h.type,bi,corner:h.corner||null,startX:e.clientX,startY:e.clientY,
+      startProps:{...S.boxes[bi][S.stage]}};
+    cv.style.cursor=h.cur||'crosshair';redraw();
+  });
+
+  // ── mousemove ────────────────────────────────────────────────────────────
+  window.addEventListener('mousemove',e=>{
+    if(!drag)return;
+    const{rendW,rendH,s}=getCanvasTransform();
+    const{mx,my}=cssPx(e);
+    const dx=(e.clientX-drag.startX)/rendW*32;
+    const dy=-(e.clientY-drag.startY)/rendH*18;
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+    const shiftHeld=e.shiftKey,ctrlHeld=e.ctrlKey||e.metaKey;
+
+    if(drag.type==='selrect'){
+      S.selRect.x1=mx;S.selRect.y1=my;
+      const rL=Math.min(S.selRect.x0,S.selRect.x1),rR=Math.max(S.selRect.x0,S.selRect.x1);
+      const rT=Math.min(S.selRect.y0,S.selRect.y1),rB=Math.max(S.selRect.y0,S.selRect.y1);
+      S.selectedBoxes=new Set();
+      [0,1,2,3].forEach(bi=>{
+        if(!S.boxes[bi].on)return;
+        const g=boxGeom(bi);
+        const cx=(g.ul+g.ur)/2*s,cy=(g.ut+g.ub)/2*s;
+        if(cx>=rL&&cx<=rR&&cy>=rT&&cy<=rB){S.selectedBoxes.add(bi);S.selectedBox=bi;}
+      });
+      redraw();return;
+    }
+
+    if(drag.type==='move'){
+      S.selectedBoxes.forEach(bi=>{
+        const sp=drag.allProps[bi];if(!sp)return;
+        let nx=sp.x+dx,ny=sp.y+dy;
+        if(S.snap&&!e.altKey){
+          nx=snapVal(nx);ny=snapVal(ny);
+          const snapped=snapEdges({x:nx,y:ny,scale:S.boxes[bi][S.stage].scale});
+          nx=snapped.x;ny=snapped.y;
+        }
+        S.boxes[bi][S.stage].x=parseFloat(nx.toFixed(3));
+        S.boxes[bi][S.stage].y=parseFloat(ny.toFixed(3));
+      });
+      redraw();S.selectedBoxes.forEach(bi=>syncInputs(bi));return;
+    }
+
+    if(drag.type==='scale'){
+      const sp=drag.startProps,box=S.boxes[drag.bi];
+      const corner=drag.corner||'br';
+      if(shiftHeld||ctrlHeld){
+        // Uniform from centre
+        const u=(Math.abs(dx)>Math.abs(dy)?dx:-dy)*0.032;
+        box[S.stage].scale=parseFloat(clamp(snapScale(sp.scale+u),.01,2).toFixed(3));
+      } else {
+        // Only dragged corner moves — opposite corner stays fixed
+        // sign: each corner's drag direction that means "grow"
+        // TL: drag left(-x) and up(+y) = grow → signX=-1, signY=+1 (dy is flipped: up = positive dy)
+        // TR: drag right(+x) and up(+y) = grow → signX=+1, signY=+1
+        // BL: drag left(-x) and down(-y) = grow → signX=-1, signY=-1
+        // BR: drag right(+x) and down(-y) = grow → signX=+1, signY=-1
+        const signX=(corner==='tr'||corner==='br')?1:-1;
+        const signY=(corner==='tl'||corner==='tr')?1:-1;
+        const delta=(signX*dx+signY*dy)*0.028;
+        box[S.stage].scale=parseFloat(clamp(snapScale(sp.scale+delta),.01,2).toFixed(3));
+      }
+      // Also apply to all other selected boxes
+      if(S.selectedBoxes.size>1){
+        S.selectedBoxes.forEach(bi=>{
+          if(bi===drag.bi)return;
+          const op={...S.boxes[bi][S.stage]};
+          const signX=(corner==='tr'||corner==='br')?1:-1;
+          const signY=(corner==='tl'||corner==='tr')?1:-1;
+          const delta=(signX*dx+signY*dy)*0.028;
+          S.boxes[bi][S.stage].scale=parseFloat(clamp(snapScale(op.scale+delta),.01,2).toFixed(3));
+        });
+      }
+      redraw();syncInputs(drag.bi);return;
+    }
+
+    // Crop
+    const sp=drag.startProps,box=S.boxes[drag.bi],t=drag.type;
+    if(t==='cropL'){let v=sp.cropL+dx;if(shiftHeld)v=Math.round(v*2)/2;box[S.stage].cropL=parseFloat(clamp(v,0,16).toFixed(3));}
+    else if(t==='cropR'){let v=sp.cropR-dx;if(shiftHeld)v=Math.round(v*2)/2;box[S.stage].cropR=parseFloat(clamp(v,0,16).toFixed(3));}
+    else if(t==='cropT'){let v=sp.cropT-dy;if(shiftHeld)v=Math.round(v*2)/2;box[S.stage].cropT=parseFloat(clamp(v,0,9).toFixed(3));}
+    else if(t==='cropB'){let v=sp.cropB+dy;if(shiftHeld)v=Math.round(v*2)/2;box[S.stage].cropB=parseFloat(clamp(v,0,9).toFixed(3));}
+    redraw();syncInputs(drag.bi);
+  });
+
+  // ── mouseup ──────────────────────────────────────────────────────────────
+  window.addEventListener('mouseup',()=>{
+    if(!drag)return;
+    if(drag.type==='selrect'){S.selRect=null;}
+    drag=null;cv.style.cursor='default';redraw();
+  });
+
+  // ── hover cursor ─────────────────────────────────────────────────────────
+  cv.addEventListener('mousemove',e=>{
+    if(drag||S.playing)return;
+    const hit=findHit(e);
+    if(!hit){cv.style.cursor='default';return;}
+    const t=hit.h.type;
+    if(t==='body')cv.style.cursor='move';
+    else if(t==='scale'){const c2=hit.h.corner;cv.style.cursor=(c2==='tl'||c2==='br')?'nwse-resize':'nesw-resize';}
+    else if(t==='cropL'||t==='cropR')cv.style.cursor='ew-resize';
+    else if(t==='cropT'||t==='cropB')cv.style.cursor='ns-resize';
+    else cv.style.cursor=hit.h.cur||'default';
+  });
+})();
+// Highlight box cards — all selected boxes get outlined
+function highlightBoxCard(bi){
+  document.querySelectorAll('.box-card').forEach((card,i)=>{
+    const selected=i===S.selectedBox||S.selectedBoxes.has(i);
+    card.style.outline=selected?`2px solid ${BCOLS[i]}`:'none';
+    card.style.outlineOffset='2px';
+  });
+}
+
+function syncInputs(bi){
+  document.querySelectorAll(`.num[data-bi="${bi}"]`).forEach(inp=>{
+    const{stage,prop}=inp.dataset;
+    const v=S.boxes[bi][stage][prop];
+    if(v!==undefined)inp.value=parseFloat(v).toFixed(3);
+  });
+}
+
+// ── XML generation ─────────────────────────────────────────────────────────
+function genXML(){
+  const devName=DEVICES[S.device]?.name||'ATEM Switcher';
+  const name=document.getElementById('mname').value||'SS Animation';
+  const idx=parseInt(document.getElementById('midx').value||'1')-1;
+  const{rendered,maxFrames}=renderFrames();
+  const ss=S.ss;
+  let x=`<?xml version="1.0" encoding="UTF-8"?>\n<Profile majorVersion="1" minorVersion="5" product="${devName}">\n  <MacroPool>\n    <Macro index="${idx}" name="${name}" description="">\n\n`;
+  x+=`      <!-- Enable / disable boxes -->\n`;
+  S.boxes.forEach((box,bi)=>x+=`      <Op id="SuperSourceV2BoxEnable" superSource="${ss}" boxIndex="${bi}" enable="${box.on?'True':'False'}"/>\n`);
+  x+=`\n      <!-- Sources -->\n`;
+  S.boxes.forEach((box,bi)=>{if(box.on&&box.src&&box.src!=='0')x+=`      <Op id="SuperSourceV2BoxInput" superSource="${ss}" boxIndex="${bi}" input="${box.src}"/>\n`;});
+  x+=`\n      <!-- Enable mask -->\n`;
+  S.boxes.forEach((box,bi)=>{if(box.on)x+=`      <Op id="SuperSourceV2BoxMaskEnable" superSource="${ss}" boxIndex="${bi}" enable="True"/>\n`;});
+  x+=`\n`;
+  const pm={x:{id:'SuperSourceV2BoxXPosition',a:'xPosition'},y:{id:'SuperSourceV2BoxYPosition',a:'yPosition'},scale:{id:'SuperSourceV2BoxSize',a:'size'},cropL:{id:'SuperSourceV2BoxMaskLeft',a:'left'},cropT:{id:'SuperSourceV2BoxMaskTop',a:'top'},cropR:{id:'SuperSourceV2BoxMaskRight',a:'right'},cropB:{id:'SuperSourceV2BoxMaskBottom',a:'bottom'}};
+  const last=S.boxes.map(()=>({}));
+  for(let f=0;f<=maxFrames;f++){
+    S.boxes.forEach((box,bi)=>{
+      if(!box.on)return;const anim=rendered[bi];if(!anim)return;
+      Object.keys(pm).forEach(prop=>{
+        const arr=anim[prop];if(!arr)return;
+        const v=arr[Math.min(f,arr.length-1)].toFixed(3);
+        if(v!==last[bi][prop]){x+=`      <Op id="${pm[prop].id}" superSource="${ss}" boxIndex="${bi}" ${pm[prop].a}="${v}"/>\n`;last[bi][prop]=v;}
+      });
+    });
+    x+=`      <Op id="MacroSleep" frames="1"/>\n\n`;
+  }
+  x+=`    </Macro>\n  </MacroPool>\n</Profile>`;
+  return x;
+}
+
+function dlXML(){
+  const xml=genXML();
+  const name=(document.getElementById('mname').value||'animation').replace(/\s+/g,'-');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([xml],{type:'text/xml'}));
+  a.download=name+'.xml';a.click();
+}
+
+// ── Device select ──────────────────────────────────────────────────────────
+function buildDevSel(){
+  const sel=document.getElementById('sel-device');sel.innerHTML='';
+  Object.entries(DEVICES).forEach(([k,d])=>{
+    const o=document.createElement('option');o.value=k;o.textContent=d.name;
+    if(k===S.device)o.selected=true;sel.appendChild(o);
+  });
+}
+function updateDevUI(){
+  const d=DEVICES[S.device];
+  const sw=document.getElementById('sel-sw');
+  for(let i=0;i<4;i++)sw.options[i].disabled=i>=d.sw;
+  if(S.sw>=d.sw)S.sw=0;sw.value=S.sw;
+  const ss=document.getElementById('sel-ss');
+  ss.options[0].disabled=d.ss<1;ss.options[1].disabled=d.ss<2;
+  ss.disabled=d.ss<2;
+  ss.options[0].textContent=d.ss<1?'No SuperSource':'SuperSource 1';
+}
+
+// ── Events ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-help').addEventListener('click',()=>{
+  const p=document.getElementById('help-popup');
+  p.style.display=p.style.display==='none'?'block':'none';
+});
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#btn-help')&&!e.target.closest('#help-popup'))
+    document.getElementById('help-popup').style.display='none';
+});
+document.getElementById('sel-device').addEventListener('change',e=>{S.device=e.target.value;updateDevUI();buildBoxes();redraw();});
+document.getElementById('sel-sw').addEventListener('change',e=>{S.sw=parseInt(e.target.value);});
+document.getElementById('sel-ss').addEventListener('change',e=>{S.ss=parseInt(e.target.value);});
+document.getElementById('playbtn').addEventListener('click',startPlay);
+document.getElementById('btn-from').addEventListener('click',()=>{S.stage='from';document.getElementById('btn-from').classList.add('on');document.getElementById('btn-to').classList.remove('on');redraw();});
+document.getElementById('btn-to').addEventListener('click',()=>{S.stage='to';document.getElementById('btn-to').classList.add('on');document.getElementById('btn-from').classList.remove('on');redraw();});
+document.querySelectorAll('.fpsbtn').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.fpsbtn').forEach(x=>x.classList.remove('on'));b.classList.add('on');S.fps=parseInt(b.dataset.fps);}));
+document.getElementById('duration').addEventListener('input',e=>{const v=parseFloat(e.target.value);if(!isNaN(v)&&v>=.2)S.dur=v;});
+document.querySelectorAll('.easebtn').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.easebtn').forEach(x=>x.classList.remove('on'));b.classList.add('on');S.easing=b.dataset.ease;redraw();}));
+document.getElementById('btn-dl').addEventListener('click',dlXML);
+document.getElementById('btn-xml').addEventListener('click',()=>{const p=document.getElementById('xmlpre');const show=p.style.display==='none'||!p.style.display;p.style.display=show?'block':'none';document.getElementById('btn-xml').textContent=show?'Hide XML preview':'Show XML preview';if(show)p.textContent=genXML();});
+
+
+// ── Zoom ───────────────────────────────────────────────────────────────────
+function applyZoom(){
+  const wrap=document.getElementById('canvas-wrap');
+  const ww=wrap.clientWidth, wh=wrap.clientHeight;
+  // The total canvas aspect ratio (TCW x TCH)
+  const ar=TCW/TCH;
+  // At zoom=1, fit the FRAME (CW x CH) within the wrap area
+  // so the margins are visible as overflow
+  let frameW, frameH;
+  if(ww/wh > CW/CH){ frameH=wh*0.85; frameW=frameH*(CW/CH); }
+  else              { frameW=ww*0.85; frameH=frameW/(CW/CH); }
+  // Scale up for zoom
+  frameW*=S.zoom; frameH*=S.zoom;
+  // Total canvas CSS size = frame + margins
+  const totalW=frameW*(TCW/CW), totalH=frameH*(TCH/CH);
+  cv.style.width  = totalW+'px';
+  cv.style.height = totalH+'px';
+  // Position canvas so the frame (not the total canvas) is centred in wrap
+  const marginCSSX = frameW*(MARG/CW);
+  const marginCSSY = frameH*(MARG/CH);
+  cv.style.position='absolute';
+  cv.style.left = ((ww - frameW)/2 - marginCSSX) + 'px';
+  cv.style.top  = ((wh - frameH)/2 - marginCSSY) + 'px';
+  document.getElementById('zoom-lbl').textContent=Math.round(S.zoom*100)+'%';
+}
+
+function setZoom(z){
+  S.zoom=Math.max(0.25,Math.min(4,z));
+  applyZoom();
+}
+
+document.getElementById('zoom-in').addEventListener('click',()=>setZoom(S.zoom*1.25));
+window.addEventListener('resize',()=>applyZoom());
+document.getElementById('zoom-out').addEventListener('click',()=>setZoom(S.zoom/1.25));
+document.getElementById('zoom-fit').addEventListener('click',()=>setZoom(1.0));
+
+// Scroll wheel zoom on canvas wrap
+document.getElementById('canvas-wrap').addEventListener('wheel',e=>{
+  e.preventDefault();
+  const delta=e.deltaY<0?1.1:0.91;
+  setZoom(S.zoom*delta);
+},{passive:false});
+
+// ── Snap toggle ────────────────────────────────────────────────────────────
+document.getElementById('snap-btn').addEventListener('click',()=>{
+  S.snap=!S.snap;
+  document.getElementById('snap-btn').classList.toggle('on',S.snap);
+  redraw();
+});
+
+// ── Reverse animation ──────────────────────────────────────────────────────
+function reverseAnimation(){
+  S.boxes.forEach(box=>{
+    const tmp={...box.from};
+    box.from={...box.to};
+    box.to=tmp;
+  });
+  buildBoxes();
+  redraw();
+}
+
+document.getElementById('btn-reverse').addEventListener('click',()=>{
+  reverseAnimation();
+});
+
+document.getElementById('btn-dl-rev').addEventListener('click',()=>{
+  // temporarily reverse, generate XML, then reverse back
+  reverseAnimation();
+  const origName=document.getElementById('mname').value;
+  document.getElementById('mname').value=origName+' (Reversed)';
+  dlXML();
+  document.getElementById('mname').value=origName;
+  reverseAnimation(); // restore
+});
+
+// ── XML Loader — full macro browser ────────────────────────────────────────
+
+// Shared opcode maps (used by both browser and loader)
+const OP_MAP = {
+  'SuperSourceV2BoxXPosition':{ prop:'x',     attr:'xPosition'},
+  'SuperSourceV2BoxYPosition':{ prop:'y',     attr:'yPosition'},
+  'SuperSourceV2BoxSize':     { prop:'scale', attr:'size'     },
+  'SuperSourceV2BoxMaskLeft': { prop:'cropL', attr:'left'     },
+  'SuperSourceV2BoxMaskTop':  { prop:'cropT', attr:'top'      },
+  'SuperSourceV2BoxMaskRight':{ prop:'cropR', attr:'right'    },
+  'SuperSourceV2BoxMaskBottom':{ prop:'cropB',attr:'bottom'   },
+  'SuperSourceBoxXPosition':  { prop:'x',     attr:'xPosition'},
+  'SuperSourceBoxYPosition':  { prop:'y',     attr:'yPosition'},
+  'SuperSourceBoxSize':       { prop:'scale', attr:'size'     },
+  'SuperSourceBoxCropLeft':   { prop:'cropL', attr:'left'     },
+  'SuperSourceBoxCropTop':    { prop:'cropT', attr:'top'      },
+  'SuperSourceBoxCropRight':  { prop:'cropR', attr:'right'    },
+  'SuperSourceBoxCropBottom': { prop:'cropB', attr:'bottom'   },
+  'SuperSourceBoxMaskLeft':   { prop:'cropL', attr:'left'     },
+  'SuperSourceBoxMaskTop':    { prop:'cropT', attr:'top'      },
+  'SuperSourceBoxMaskRight':  { prop:'cropR', attr:'right'    },
+  'SuperSourceBoxMaskBottom': { prop:'cropB', attr:'bottom'   },
+};
+const ENABLE_OPS = new Set(['SuperSourceV2BoxEnable','SuperSourceBoxEnabled','SuperSourceBoxEnable']);
+const SOURCE_OPS = new Set(['SuperSourceV2BoxInput','SuperSourceBoxInput','SuperSourceBoxSource']);
+const SS_OP_PREFIXES = ['SuperSourceV2Box','SuperSourceBox','SSrcBox'];
+
+function getBoxIdx(op){
+  const v=op.getAttribute('boxIndex')??op.getAttribute('box')??op.getAttribute('index');
+  return v!==null?parseInt(v):NaN;
+}
+function getEnable(op){
+  const v=(op.getAttribute('enable')??op.getAttribute('enabled')??'').toLowerCase();
+  return v==='true'||v==='1';
+}
+
+// Parse a single <Macro> element → timeline data
+function parseMacroOps(macro){
+  const ops=Array.from(macro.querySelectorAll('Op'));
+  const tl=[0,1,2,3].map(()=>({enabled:false,src:null,x:[],y:[],scale:[],cropL:[],cropT:[],cropR:[],cropB:[]}));
+  const sleeps=ops.filter(o=>o.getAttribute('id')==='MacroSleep').length;
+  ops.forEach(op=>{
+    const id=op.getAttribute('id');
+    const bi=getBoxIdx(op);
+    if(isNaN(bi)||bi<0||bi>3)return;
+    if(ENABLE_OPS.has(id)) tl[bi].enabled=getEnable(op);
+    else if(SOURCE_OPS.has(id)) tl[bi].src=op.getAttribute('input')??op.getAttribute('source')??null;
+    else if(OP_MAP[id]){
+      const{prop,attr}=OP_MAP[id];
+      const val=parseFloat(op.getAttribute(attr));
+      if(!isNaN(val))tl[bi][prop].push(val);
+    }
+  });
+  return{tl,sleeps};
+}
+
+// Check if a macro contains any SuperSource opcodes
+function macroHasSS(macro){
+  return Array.from(macro.querySelectorAll('Op')).some(op=>{
+    const id=op.getAttribute('id')||'';
+    return SS_OP_PREFIXES.some(p=>id.startsWith(p));
+  });
+}
+
+// Apply parsed timeline to S.boxes and refresh UI
+function applyTimeline(tl, sleeps, macroName, macroIdx){
+  const props=['x','y','scale','cropL','cropT','cropR','cropB'];
+  let anyBox=false;
+  tl.forEach((t,bi)=>{
+    const from={},to={};let hasData=false;
+    props.forEach(p=>{
+      const arr=t[p];
+      if(arr.length>0){from[p]=arr[0];to[p]=arr[arr.length-1];hasData=true;}
+      else{from[p]=S.boxes[bi].from[p]||0;to[p]=S.boxes[bi].to[p]||0;}
+    });
+    if(hasData){
+      anyBox=true;
+      S.boxes[bi].on=t.enabled;S.boxes[bi].from=from;S.boxes[bi].to=to;
+      if(t.src)S.boxes[bi].src=t.src;
+    } else if(t.enabled!==undefined){S.boxes[bi].on=t.enabled;}
+  });
+  if(!anyBox)throw new Error('No SuperSource box data found');
+  document.getElementById('mname').value=macroName;
+  document.getElementById('midx').value=macroIdx;
+  if(sleeps>0){
+    S.dur=Math.max(.2,Math.min(10,parseFloat((sleeps/S.fps).toFixed(2))));
+    document.getElementById('duration').value=S.dur.toFixed(1);
+  }
+  buildBoxes();
+  S.stage='from';
+  document.getElementById('btn-from').classList.add('on');
+  document.getElementById('btn-to').classList.remove('on');
+  saveResetPoint();
+  redraw();
+}
+
+// ── Macro browser modal ─────────────────────────────────────────────────────
+let _parsedDoc=null; // holds the last parsed XML doc for the browser
+
+function showMacroBrowser(doc, filename){
+  _parsedDoc=doc;
+  const macros=Array.from(doc.querySelectorAll('Macro'));
+  const ssMacros=macros.filter(macroHasSS);
+
+  // Remove any existing modal
+  document.getElementById('macro-modal')?.remove();
+
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.id='macro-modal';
+
+  const total=macros.length, ssCount=ssMacros.length;
+  const rows=ssMacros.length===0
+    ? `<div class="modal-empty">No SuperSource macros found in this file.<br><span style="font-size:10px;color:var(--muted)">${total} macro${total!==1?'s':''} total, none contain SuperSource opcodes.</span></div>`
+    : ssMacros.map(macro=>{
+        const name=macro.getAttribute('name')||'(unnamed)';
+        const idx=parseInt(macro.getAttribute('index')||'0')+1;
+        const{tl,sleeps}=parseMacroOps(macro);
+        const activeBi=tl.map((t,i)=>({t,i})).filter(({t})=>t.enabled||t.x.length>0);
+        const dur=sleeps>0?`~${(sleeps/S.fps).toFixed(1)}s`:'static';
+        const dots=activeBi.map(({i})=>`<div class="macro-box-dot" style="background:${['#3b7fe8','#e05555','#d9921f','#3dba54'][i]}"></div>`).join('');
+        const isAnimated=tl.some(t=>t.x.length>1||t.y.length>1||t.scale.length>1);
+        return `<div class="macro-item" data-idx="${macro.getAttribute('index')}">
+          <div class="macro-idx">#${idx}</div>
+          <div class="macro-name">${name}</div>
+          <div class="macro-boxes">${dots}</div>
+          <div class="macro-meta">${isAnimated?dur:'static'}<br>${activeBi.length} box${activeBi.length!==1?'es':''}</div>
+        </div>`;
+      }).join('');
+
+  overlay.innerHTML=`<div class="modal">
+    <div class="modal-hdr">
+      <h2>📂 ${filename}</h2>
+      <span>${ssCount} SuperSource macro${ssCount!==1?'s':''} of ${total} total</span>
+      <button class="modal-close" id="modal-close-btn">✕</button>
+    </div>
+    <div class="modal-body">${rows}</div>
+  </div>`;
+
+  document.body.appendChild(overlay);
+
+  // Close handlers
+  overlay.addEventListener('click',e=>{ if(e.target===overlay)closeMacroBrowser(); });
+  document.getElementById('modal-close-btn').addEventListener('click',closeMacroBrowser);
+
+  // Click a macro item to load it
+  overlay.querySelectorAll('.macro-item').forEach(item=>{
+    item.addEventListener('click',()=>{
+      const rawIdx=item.dataset.idx;
+      const macro=_parsedDoc.querySelector(`Macro[index="${rawIdx}"]`);
+      if(!macro)return;
+      const name=macro.getAttribute('name')||'Macro';
+      const idx=parseInt(rawIdx)+1;
+      const{tl,sleeps}=parseMacroOps(macro);
+      try{
+        pushUndo();
+        applyTimeline(tl,sleeps,name,idx);
+        showLoadMsg(`✓ Loaded "${name}" (index ${idx})`, '#1a3a1a','#6dda8a');
+      }catch(err){
+        showLoadMsg('❌ '+err.message,'#5a1a1a','#da6d6d');
+      }
+      closeMacroBrowser();
+    });
+  });
+}
+
+function closeMacroBrowser(){
+  document.getElementById('macro-modal')?.remove();
+}
+
+// ── File input handler ──────────────────────────────────────────────────────
+document.getElementById('xml-file-input').addEventListener('change',function(e){
+  const file=e.target.files[0];if(!file)return;
+  showLoadMsg('⏳ Reading file…','#1a2a3a','#7ab0ff');
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const parser=new DOMParser();
+      const doc=parser.parseFromString(ev.target.result,'text/xml');
+      const parseErr=doc.querySelector('parsererror');
+      if(parseErr)throw new Error('Invalid XML file');
+      const macros=Array.from(doc.querySelectorAll('Macro'));
+      if(macros.length===0)throw new Error('No <Macro> elements found');
+      // If only one SS macro, load directly; otherwise show browser
+      const ssMacros=macros.filter(macroHasSS);
+      if(ssMacros.length===1){
+        const m=ssMacros[0];
+        const{tl,sleeps}=parseMacroOps(m);
+        pushUndo();
+        applyTimeline(tl,sleeps,m.getAttribute('name')||file.name.replace('.xml',''),parseInt(m.getAttribute('index')||'0')+1);
+        showLoadMsg(`✓ Loaded "${m.getAttribute('name')||'Macro'}"`, '#1a3a1a','#6dda8a');
+      } else {
+        showMacroBrowser(doc, file.name);
+      }
+    }catch(err){
+      showLoadMsg('❌ Could not parse: '+err.message,'#5a1a1a','#da6d6d');
+    }
+    e.target.value='';
+  };
+  reader.readAsText(file);
+});
+
+function showLoadMsg(msg,bg,col){
+  const el=document.getElementById('load-msg');
+  el.style.display='block';el.style.background=bg||'#1a3a1a';el.style.color=col||'#6dda8a';
+  el.textContent=msg;clearTimeout(el._t);
+  el._t=setTimeout(()=>{el.style.display='none';},5000);
+}
+
+// ── Custom presets ─────────────────────────────────────────────────────────
+let customPresets = JSON.parse(localStorage.getItem('ss_custom_presets')||'[]');
+
+function saveCustomPresets(){
+  try{localStorage.setItem('ss_custom_presets',JSON.stringify(customPresets));}catch(e){}
+}
+
+function buildCustomPresetItems(){
+  const list=document.getElementById('preset-list');
+  // Remove existing custom items
+  list.querySelectorAll('.preset-item.custom').forEach(el=>el.remove());
+  customPresets.forEach((p,pi)=>{
+    const el=document.createElement('div');
+    el.className='preset-item custom';
+    el.style.borderColor='rgba(91,127,255,0.3)';
+    el.innerHTML=`<span class="pi">⭐</span><span style="flex:1">${p.name}</span><span style="font-size:10px;color:var(--muted);cursor:pointer;padding:2px 5px;" data-del="${pi}" title="Delete">✕</span>`;
+    el.querySelector('[data-del]').addEventListener('click',e=>{
+      e.stopPropagation();
+      customPresets.splice(pi,1);
+      saveCustomPresets();
+      buildPresets();
+    });
+    el.addEventListener('click',e=>{
+      if(e.target.dataset.del!==undefined)return;
+      pushUndo();
+      p.boxes.forEach((b,bi)=>{
+        S.boxes[bi].on=b.on;
+        S.boxes[bi].from={...b.from};
+        S.boxes[bi].to={...b.to};
+      });
+      if(p.easing)S.easing=p.easing;
+      if(p.dur)S.dur=p.dur;
+      document.querySelectorAll('.easebtn').forEach(b=>b.classList.toggle('on',b.dataset.ease===S.easing));
+      document.getElementById('duration').value=S.dur.toFixed(1);
+      buildBoxes();saveResetPoint();redraw();
+    });
+    list.appendChild(el);
+  });
+}
+
+document.getElementById('btn-save-preset').addEventListener('click',()=>{
+  const name=prompt('Preset name:',document.getElementById('mname').value||'My Preset');
+  if(!name)return;
+  customPresets.unshift({
+    name,
+    easing:S.easing,
+    dur:S.dur,
+    boxes:S.boxes.map(b=>({on:b.on,from:{...b.from},to:{...b.to}}))
+  });
+  if(customPresets.length>20)customPresets.pop();
+  saveCustomPresets();
+  buildPresets();
+  showLoadMsg(`✓ Saved preset "${name}"`, '#1a3a1a','#6dda8a');
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+buildDevSel();updateDevUI();buildBoxes();buildPresets();drawFrame(-1);
+// Apply initial zoom after DOM settles
+requestAnimationFrame(()=>applyZoom());
+</script>
+</body>
+</html>
