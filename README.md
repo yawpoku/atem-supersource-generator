@@ -4,7 +4,7 @@ A free, browser-based tool for creating smooth SuperSource box animations on Bla
 
 > Built by a live church video operator who spent years trying to animate the SuperSource and finally cracked it.
 
-**[▶ Open the app](https://yourusername.github.io/atem-supersource-generator)**
+**[▶ Open the app](https://yawpoku.github.io/atem-supersource-generator)**
 
 ---
 
